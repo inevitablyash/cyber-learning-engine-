@@ -1,8 +1,7 @@
 // api/generate.js — Vercel serverless function (Node 18+)
 // Minimal handler: calls OpenAI Chat Completions and returns JSON { notes, quiz }.
 // IMPORTANT: Set OPENAI_API_KEY in Vercel project env vars.
-
-import fetch from 'node-fetch';
+// using global fetch available in Vercel's Node runtime (no node-fetch required)
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Method not allowed');
