@@ -1,0 +1,313 @@
+# Cybersecurity Learning Engine — Web App Starter
+
+This single-file bundle gives you a ready-to-deploy React + serverless backend starter you can copy into a GitHub repo and deploy to Vercel. It's designed for beginners: copy, paste, click deploy. No heavy infra knowledge required.
+
+---
+
+## What this package contains (all in one place below)
+
+1. `package.json` — dependencies and scripts
+2. `src/main.jsx` — React entry
+3. `src/App.jsx` — Full React app (Topic generator UI + display)
+4. `src/styles.css` — basic Tailwind + minimal styling
+5. `vercel.json` — Vercel config
+6. `api/generate.js` — serverless endpoint (Node) that calls OpenAI (uses `OPENAI_API_KEY` env var)
+7. `README.md` — copy-paste friendly deployment guide
+
+> NOTE: This is intentionally minimal and self-contained. It uses Vite-style React single-file structure. Tailwind is optional — the CSS included is minimal so it looks clean.
+
+---
+
+## package.json
+
+```json
+{
+  "name": "cyber-learning-engine",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "start": "vite preview"
+  },
+  "dependencies": {
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "4.0.0",
+    "vite": "5.0.0"
+  }
+}
+```
+
+---
+
+## src/main.jsx
+
+```jsx
+import React from 'react'
+import { createRoot } from 'react-dom/client'
+import App from './App'
+import './styles.css'
+
+createRoot(document.getElementById('root')).render(<App />)
+```
+
+---
+
+## src/App.jsx
+
+```jsx
+import React, { useState } from 'react'
+
+function Loader(){
+  return <div className="loader">Generating…</div>
+}
+
+export default function App(){
+  const [topic, setTopic] = useState('Buffer overflow')
+  const [notes, setNotes] = useState(null)
+  const [quiz, setQuiz] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  async function generate(){
+    setLoading(true)
+    setError('')
+    setNotes(null)
+    setQuiz(null)
+    try{
+      const resp = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json'},
+        body: JSON.stringify({ topic })
+      })
+      if(!resp.ok){
+        const txt = await resp.text()
+        throw new Error(txt || 'Request failed')
+      }
+      const data = await resp.json()
+      setNotes(data.notes)
+      setQuiz(data.quiz)
+    }catch(e){
+      setError(e.message)
+    }finally{
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="container">
+      <header className="header">
+        <h1>Cyber Learning Engine — Notes + Quiz</h1>
+        <p className="muted">Type a topic (e.g., "Buffer overflow") and hit Generate.</p>
+      </header>
+
+      <div className="controls">
+        <input value={topic} onChange={e=>setTopic(e.target.value)} className="input" />
+        <button onClick={generate} className="btn">Generate</button>
+      </div>
+
+      {loading && <Loader />}
+      {error && <div className="error">{error}</div>}
+
+      {notes && (
+        <section className="card">
+          <h2>{notes.title}</h2>
+          <p className="muted">{notes['tl;dr']}</p>
+          <div className="notes" dangerouslySetInnerHTML={{__html: markdownToHtml(notes.body_md)}} />
+        </section>
+      )}
+
+      {quiz && (
+        <section className="card">
+          <h3>{quiz.title}</h3>
+          <ol>
+            {quiz.questions.map(q=> (
+              <li key={q.id}>
+                <div className="q">{q.q}</div>
+                <ul>
+                  {q.options.map((o,idx)=> <li key={idx}>{String.fromCharCode(65+idx)}. {o}</li>)}
+                </ul>
+                <div className="explain muted">Answer: {q.answer} — {q.explain}</div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
+      <footer className="foot muted">Made for Asher — copy, paste, deploy.</footer>
+    </div>
+  )
+}
+
+// VERY simple markdown -> HTML converter for our small cases
+function markdownToHtml(md){
+  if(!md) return ''
+  // replace headings, code fences, and newlines — tiny parser
+  let out = md
+    .replace(/```([\s\S]*?)```/g, (m,code)=> `<pre><code>${escapeHtml(code)}</code></pre>`)
+    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+    .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
+    .replace(/\n\n+/gim, '</p><p>')
+  out = '<p>' + out + '</p>'
+  return out
+}
+
+function escapeHtml(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+}
+```
+
+---
+
+## src/styles.css
+
+```css
+:root{--bg:#f7f7fb;--card:#fff;--accent:#4f46e5}
+body{font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial;margin:0;background:var(--bg);color:#0f172a}
+.container{max-width:900px;margin:28px auto;padding:20px}
+.header h1{margin:0 0 6px 0}
+.muted{color:#475569}
+.controls{display:flex;gap:8px;margin:12px 0}
+.input{flex:1;padding:10px;border-radius:8px;border:1px solid #e6eef8}
+.btn{background:var(--accent);color:#fff;padding:10px 14px;border-radius:8px;border:none;cursor:pointer}
+.card{background:var(--card);padding:16px;border-radius:12px;box-shadow:0 6px 18px rgba(15,23,42,0.06);margin-top:16px}
+.q{font-weight:600}
+.explain{margin-top:6px}
+.error{color:#b91c1c}
+.foot{margin-top:28px;text-align:center}
+.loader{padding:12px}
+pre{background:#0b1220;color:#d1d5db;padding:12px;border-radius:8px;overflow:auto}
+```
+
+---
+
+## api/generate.js (serverless function)
+
+```js
+// api/generate.js — Vercel serverless function (Node 18+)
+import fetch from 'node-fetch'
+
+export default async function handler(req, res){
+  if(req.method !== 'POST') return res.status(405).send('Method not allowed')
+  const { topic = 'Buffer overflow' } = req.body || {}
+  const OPENAI_KEY = process.env.OPENAI_API_KEY
+  if(!OPENAI_KEY) return res.status(500).json({error:'missing_api_key'})
+
+  const system = `You are an expert cybersecurity instructor and pedagogue. Produce concise, accurate study materials suitable for a motivated student preparing for practical labs and interviews. Use bullet lists, highlight commands or code in fenced blocks, and output JSON.`
+
+  const notesPrompt = `Generate SHORT study notes for the topic: ${topic}.\nRequirements:\n- 250–350 words\n- Include: one-line definition, 5 key concept bullets, 3 unsafe functions (if applicable), 3 mitigations, 1 minimal hands-on lab (2–4 steps), 2 interview tips.\nOutput JSON with keys: type,title,tl;dr,body_md.`
+
+  const quizPrompt = `Generate an 8-question quiz for topic: ${topic}.\nRequirements:\n- 4 easy, 3 medium, 1 hard\n- Multiple choice (4 options A-D)\n- Provide answer letter and 1-2 sentence explanation\nOutput JSON: {"type":"quiz","title":"...","questions":[{...}]}`
+
+  try{
+    // call LLM for notes
+    const noteResp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${OPENAI_KEY}` },
+      body: JSON.stringify({ model:'gpt-4o-mini', messages:[{role:'system',content:system},{role:'user',content:notesPrompt}], max_tokens:900 })
+    })
+    const noteJson = await noteResp.json()
+    const noteText = noteJson.choices?.[0]?.message?.content || '{}'
+    let notes = {}
+    try{ notes = JSON.parse(noteText) }catch(e){ notes = { title: topic + ' — notes', 'tl;dr':'', body_md: noteText } }
+
+    // call LLM for quiz using notes as context
+    const quizResp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${OPENAI_KEY}` },
+      body: JSON.stringify({ model:'gpt-4o-mini', messages:[{role:'system',content:system},{role:'user',content:`Context notes:\n${notes.body_md}\n\nNow: ${quizPrompt}`}], max_tokens:900 })
+    })
+    const quizJson = await quizResp.json()
+    const quizText = quizJson.choices?.[0]?.message?.content || '{}'
+    let quiz = {}
+    try{ quiz = JSON.parse(quizText) }catch(e){ quiz = { title: topic + ' — quiz', questions: [], raw: quizText } }
+
+    return res.json({ notes, quiz })
+  }catch(err){
+    console.error(err)
+    return res.status(500).json({ error: 'generation_failed', detail: String(err) })
+  }
+}
+```
+
+---
+
+## vercel.json
+
+```json
+{
+  "version": 2,
+  "builds": [
+    { "src": "api/*", "use": "@vercel/node" },
+    { "src": "index.html", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/$1.js" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
+}
+```
+
+---
+
+## index.html (root)
+
+```html
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cyber Learning Engine</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+```
+
+---
+
+## README.md — Deploy guide (copy-paste)
+
+```
+1) Create a GitHub repo named `cyber-learning-engine` and push the files from this package.
+
+2) Sign up / login to Vercel (https://vercel.com). Connect your GitHub account.
+
+3) In Vercel dashboard, click "New Project" → Import Git Repository → choose your `cyber-learning-engine` repo.
+
+4) Set environment variable in Vercel project settings: `OPENAI_API_KEY` = <your OpenAI key>.
+
+5) Deploy. Vercel will build and publish a URL like `https://cyber-learning-engine-yourname.vercel.app`.
+
+6) Open the site, type a topic (e.g., "Buffer overflow"), hit Generate. The serverless function will call OpenAI and return notes + quiz.
+
+Notes:
+- The serverless function uses the OpenAI Chat Completions endpoint. Replace the model name with your preferred model or provider if needed.
+- If the generated JSON fails to parse, the UI will show the raw text under notes; you can refine prompts in `api/generate.js`.
+```
+
+---
+
+## Final tips for non-coders
+
+1. Copy each file exactly into your GitHub repo. Use the filenames listed.
+2. If any step breaks, paste the error text here and I'll tell you exactly what to change.
+3. Want me to convert this into a single downloadable zip? Say so and I’ll give you the full archive content (you still copy-paste into GitHub).
+
+---
+
+Good luck — this is the fastest path to a working web app. Copy the files into a GitHub repo, connect to Vercel, set `OPENAI_API_KEY`, and deploy.
+
+If you want, I can now:
+- Generate the exact file contents as downloadable text blocks (so you can copy-paste faster), OR
+- Walk you step-by-step through creating the GitHub repo and Vercel deploy with screenshots and commands.
+
+Pick which help you want next and I’ll do it now.
