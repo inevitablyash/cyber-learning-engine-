@@ -11,8 +11,6 @@ export default function App(){
   const [loading, setLoading] = useState(false)
 const [rawResponse, setRawResponse] = useState(null)
 const [statusCode, setStatusCode] = useState(null)
-const [rawResponse, setRawResponse] = useState(null)   // debug: raw API response
-const [statusCode, setStatusCode] = useState(null)     // debug: http status
 
 async function generate(){
   setLoading(true)
