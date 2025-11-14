@@ -9,34 +9,50 @@ export default function App(){
   const [notes, setNotes] = useState(null)
   const [quiz, setQuiz] = useState(null)
   const [loading, setLoading] = useState(false)
-const [error, setError] = useState('')
+const [rawResponse, setRawResponse] = useState(null)
+const [statusCode, setStatusCode] = useState(null)
 const [rawResponse, setRawResponse] = useState(null)   // debug: raw API response
 const [statusCode, setStatusCode] = useState(null)     // debug: http status
 
-  async function generate(){
-    setLoading(true)
-    setError('')
-    setNotes(null)
-    setQuiz(null)
-    try{
-      const resp = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json'},
-        body: JSON.stringify({ topic })
-      })
-      if(!resp.ok){
-        const txt = await resp.text()
-        throw new Error(txt || 'Request failed')
-      }
-      const data = await resp.json()
-      setNotes(data.notes)
-      setQuiz(data.quiz)
-    }catch(e){
-      setError(e.message)
-    }finally{
-      setLoading(false)
+async function generate(){
+  setLoading(true)
+  setError('')
+  setNotes(null)
+  setQuiz(null)
+  setRawResponse(null)
+  setStatusCode(null)
+
+  try{
+    const apiUrl = `${window.location.origin}/api/generate`
+
+    const resp = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({ topic })
+    })
+
+    setStatusCode(resp.status)
+
+    const text = await resp.text()
+    setRawResponse(text)
+    console.log("RAW API RESPONSE:", text)
+
+    try {
+      const data = JSON.parse(text)
+      setNotes(data.notes || null)
+      setQuiz(data.quiz || null)
+    } catch (parseErr){
+      setError('Failed to parse JSON. See raw response below.')
+      console.error("JSON parse error:", parseErr)
     }
+
+  }catch(e){
+    setError(e.message || 'Request failed')
+    console.error(e)
+  }finally{
+    setLoading(false)
   }
+}
 
   return (
     <div className="container">
@@ -77,7 +93,14 @@ const [statusCode, setStatusCode] = useState(null)     // debug: http status
           </ol>
         </section>
       )}
-
+  {rawResponse && (
+  <section className="card">
+    <h4>Raw API response (status: {statusCode})</h4>
+    <pre style={{whiteSpace:'pre-wrap', maxHeight:'320px', overflow:'auto'}}>
+      {rawResponse}
+    </pre>
+  </section>
+)}
       <footer className="foot muted">Made for Asher — copy, paste, deploy.</footer>
     </div>
   )
