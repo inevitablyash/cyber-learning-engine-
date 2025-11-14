@@ -9,7 +9,9 @@ export default function App(){
   const [notes, setNotes] = useState(null)
   const [quiz, setQuiz] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+const [error, setError] = useState('')
+const [rawResponse, setRawResponse] = useState(null)   // debug: raw API response
+const [statusCode, setStatusCode] = useState(null)     // debug: http status
 
   async function generate(){
     setLoading(true)
