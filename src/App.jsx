@@ -1,61 +1,23 @@
 import React, { useState } from 'react'
 
-function Loader(){
-  return <div className="loader">Generating…</div>
-}
+function Loader(){ return <div className="loader">Generating…</div> }
 
-// Normalize different quiz shapes into a consistent array of questions:
-// Accepts either:
-// - [{ id, q, options: [..], answer, explain }, ...]
-// - or [{ question, options: {A:..,B:..}, answer, explanation }, ...]
-// Returns: [{ id, q, options: [...], answer, explain }]
 function normalizeQuestions(rawQuestions) {
   if (!Array.isArray(rawQuestions)) return [];
   return rawQuestions.map((rq, idx) => {
-    // If already in normalized shape:
     if (rq && rq.q && Array.isArray(rq.options)) {
-      return {
-        id: rq.id || `q${idx+1}`,
-        q: rq.q,
-        options: rq.options,
-        answer: rq.answer || rq.correct || rq.correctOption || null,
-        explain: rq.explain || rq.explanation || ''
-      }
+      return { id: rq.id || `q${idx+1}`, q: rq.q, options: rq.options, answer: rq.answer||null, explain: rq.explain||'' }
     }
-
-    // If it's the 'question' + 'options' object shape:
-    // options might be an object { A: '...', B: '...' }
     if (rq && rq.question) {
       const opts = [];
-      if (Array.isArray(rq.options)) {
-        opts.push(...rq.options);
-      } else if (rq.options && typeof rq.options === 'object') {
-        // ensure order A..D if present
-        ['A','B','C','D'].forEach(letter => {
-          if (rq.options[letter] !== undefined) opts.push(rq.options[letter]);
-        });
-        // fallback: push remaining keys
-        Object.keys(rq.options).forEach(k => {
-          if (!['A','B','C','D'].includes(k)) opts.push(rq.options[k]);
-        });
+      if (Array.isArray(rq.options)) opts.push(...rq.options);
+      else if (rq.options && typeof rq.options === 'object') {
+        ['A','B','C','D'].forEach(letter => { if (rq.options[letter] !== undefined) opts.push(rq.options[letter]); });
+        Object.keys(rq.options).forEach(k => { if (!['A','B','C','D'].includes(k)) opts.push(rq.options[k]); });
       }
-      return {
-        id: rq.id || `q${idx+1}`,
-        q: rq.question,
-        options: opts,
-        answer: rq.answer || rq.correct || null,
-        explain: rq.explanation || rq.explain || ''
-      }
+      return { id: rq.id || `q${idx+1}`, q: rq.question, options: opts, answer: rq.answer||null, explain: rq.explanation||'' }
     }
-
-    // Last fallback: try to stringify whatever we have
-    return {
-      id: rq.id || `q${idx+1}`,
-      q: rq.q || rq.question || 'Question text unavailable',
-      options: Array.isArray(rq.options) ? rq.options : (rq.options && typeof rq.options === 'object' ? Object.values(rq.options) : []),
-      answer: rq.answer || rq.correct || null,
-      explain: rq.explain || rq.explanation || ''
-    }
+    return { id: rq.id || `q${idx+1}`, q: rq.q || rq.question || 'Question unavailable', options: Array.isArray(rq.options)? rq.options : (rq.options && typeof rq.options === 'object' ? Object.values(rq.options) : []), answer: rq.answer||null, explain: rq.explain||rq.explanation||'' }
   })
 }
 
@@ -67,11 +29,7 @@ export default function App(){
   const [error, setError] = useState('')
 
   async function generate(){
-    setLoading(true)
-    setError('')
-    setNotes(null)
-    setQuiz(null)
-
+    setLoading(true); setError(''); setNotes(null); setQuiz(null)
     try{
       const apiUrl = `${window.location.origin}/api/generate`
       const resp = await fetch(apiUrl, {
@@ -79,22 +37,16 @@ export default function App(){
         headers: { 'Content-Type':'application/json'},
         body: JSON.stringify({ topic })
       })
-
       if (!resp.ok) {
         const txt = await resp.text().catch(()=>'')
         throw new Error(`API error ${resp.status} — ${txt}`)
       }
-
       const data = await resp.json()
-      // data should be { notes, quiz }
       setNotes(data.notes || null)
       setQuiz(data.quiz || null)
     }catch(e){
-      setError(e.message || 'Request failed')
-      console.error(e)
-    }finally{
-      setLoading(false)
-    }
+      setError(e.message || 'Request failed'); console.error(e)
+    }finally{ setLoading(false) }
   }
 
   return (
@@ -142,10 +94,8 @@ export default function App(){
   )
 }
 
-// VERY simple markdown -> HTML converter for our small cases
 function markdownToHtml(md){
   if(!md) return ''
-  // replace code fences and headings — tiny parser
   let out = md
     .replace(/```([\s\S]*?)```/g, (m,code)=> `<pre><code>${escapeHtml(code)}</code></pre>`)
     .replace(/^### (.*$)/gim, '<h3>$1</h3>')
